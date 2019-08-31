@@ -13,6 +13,8 @@ import { connect } from "react-redux";
 import { Dispatch } from "redux";
 import { signout } from "../../redux/actionCreators/user";
 import { ISignoutFunction } from "../../types/user";
+import { noDBAccess } from "../../constants";
+import menuAllMock from "../../mocks/menuAll";
 
 interface MatchParams {
   categoryEng: string;
@@ -33,10 +35,11 @@ class Menus extends React.PureComponent<IMenusProps, IMenusState> {
 
   async getMenuAll() {
     try {
-      const menuAll = await getMenuAll();
+      const menuAll = noDBAccess ? menuAllMock : await getMenuAll();
       if (menuAll instanceof CommonError) {
         throw menuAll;
       }
+      console.log(menuAll);
 
       if (!menuAll) throw new Error("메뉴 정보가 없습니다.");
       this.setState({
