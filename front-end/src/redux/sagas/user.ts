@@ -16,6 +16,8 @@ import * as userTypes from "../../types/user";
 import * as cartActionCreators from "../actionCreators/cart";
 import { CommonError } from "../../api/CommonError";
 import { handleError } from "../../api/common";
+import { noDBAccess } from "../../constants";
+import userMock from "../../mocks/user";
 
 function* signoutSagas() {
   yield localStorage.removeItem("jwt");
@@ -43,27 +45,35 @@ function* fetchSignupSagas(action: userTypes.IFetchSignup) {
 
 function* fetchSigninSagas(action: userTypes.IFetchSignin) {
   try {
-    const data = yield call(signIn, action.payload);
-    if (data instanceof CommonError) {
-      throw data;
-    }
-    const { authorization } = data;
+    let user = null;
 
-    // 토큰을 로컬스토리지에 저장하고, 토큰에서 유저 정보를 가져와 상태를 업데이트한다.
-    yield localStorage.setItem("jwt", authorization);
-    const jwtToken = jwt(authorization) as userTypes.IJwtToken;
-    const parsedUserInfo = JSON.parse(jwtToken.userInfo);
-    alert("환영합니다!");
-    history.push("/");
+    if (noDBAccess) {
+      user = userMock;
+    } else {
+      const data = yield call(signIn, action.payload);
+      if (data instanceof CommonError) {
+        throw data;
+      }
+      const { authorization } = data;
+
+      // 토큰을 로컬스토리지에 저장하고, 토큰에서 유저 정보를 가져와 상태를 업데이트한다.
+      yield localStorage.setItem("jwt", authorization);
+      const jwtToken = jwt(authorization) as userTypes.IJwtToken;
+      user = JSON.parse(jwtToken.userInfo);
+    }
+
     yield put(
       userActionCreators.fetchSigninFulfilled({
-        user: parsedUserInfo,
-        isAdmin: parsedUserInfo.role === "ADMIN"
+        user: user,
+        isAdmin: user.role === "ADMIN"
       })
     );
 
     // 로그인 후 유저의 장바구니를 가져온다. 순서를 보장하기 위해 로그인 사가에.
     yield put(cartActionCreators.fetchSetCart());
+
+    alert("환영합니다!");
+    history.push("/");
   } catch (error) {
     const result = yield handleError(error);
     if (result === "signout") {
